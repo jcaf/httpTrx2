@@ -1,17 +1,12 @@
+#define __AVR__
+
 #if defined(__AVR__) && defined(__GNUC__)
     #include <Arduino.h>
     #include <Ethernet.h>
 
     #define __millis() millis()
-
-    Client *pclient;
     
-    void httpTrx_setClient(Client* _pclient)
-    {
-        pclient = _pclient;
-    }
 #elif
-    
 #endif
 
 #include "httpTrx2.h"
@@ -20,35 +15,18 @@
 /******************************************************************************************/
 static HTTPTRX httpTrx;    
 /******************************************************************************************/
-//struct _NIC
-//{
-//    uint8_t *MAC;//[6];
-//    uint8_t *IP;//[4];
-//    struct _NIC_bf
-//    {
-//       unsigned DHCP:1;
-//       unsigned __a:7;
-//    }bf;
-//};
-//struct _NIC NIC;
-//
-//void NIC_setMAC(uint8_t *MAC)
-//{
-//    NIC.MAC = MAC;
-//}
-////void NIC_setIP(uint8_t *IP)
-////{
-////    NIC.IP = IP;
-////}
-//void NIC_setDHCP(ENABLED_T DHCPenabled , uint8_t *IP)
-//{
-//    NIC.bf.DHCP = DHCPenabled;
-//    NIC.IP = IP;//Static falling back IP4 if DHCP is disable
-//}
-/*
- * 1 = configured
- * 0 = not configured
- */
+#if defined(__AVR__) && defined(__GNUC__)
+    void httpTrx_setClient(TRXWR *trxwr, Client* client)
+    {
+        trxwr->client = client;
+    }
+    #define httpTrxWrite_setClient(client) do{httpTrx_setClient(&httpTrx.trxw, client);}while(0)
+    #define httpTrxRead_setClient(client) do{httpTrx_setClient(&httpTrx.trxr, client);}while(0)
+#elif
+#endif
+
+/* 1 = configured
+ * 0 = not configured */
 //int8_t NIC_begin(uint8_t *MAC, ENABLED_T DHCPenabled , uint8_t *IPstatic)
 int8_t NIC_begin(uint8_t *MAC, uint8_t *IPstatic)
 {
@@ -85,18 +63,23 @@ void NIC_getMyIP(char *str)
 }
 
 #ifdef HTTPTRX_DEBUG
-void httpTrx_UARTdebug_enabled(BOOLEAN_T enabled, PTRFX_retVOID_arg1_PCHAR UART_print)
+//void httpTrx_UARTdebug_enabled(TRXWR *trxwr, BOOLEAN_T enabled, PTRFX_retVOID_arg1_PCHAR UART_print)
+void httpTrx_UARTdebug_enabled(TRXWR *trxwr, BOOLEAN_T _bool)
 {
-    httpTrx.dbg.bf.enabled = enabled.k;
-    httpTrx.dbg.UART_print = UART_print;
+    trxwr->dbg.bf.enabled = _bool.k;
+    //httpTrx.dbg.UART_print = UART_print;
 }
-void httpTrx_UARTdebug_print(char *str)
+void httpTrx_UARTdebug_setPrintFx(PTRFX_retVOID_arg1_PCHAR UART_print)
 {
-    if (httpTrx.dbg.bf.enabled)
-        httpTrx.dbg.UART_print(str);
+    httpTrx.UART_print = UART_print;
+}
+
+void httpTrx_UARTdebug_print(TRXWR *trxwr, char *str)
+{
+    if (trxwr->dbg.bf.enabled)
+        httpTrx.UART_print(str);
 }
 #endif
-
 /******************************************************************************************/
 #if defined(__AVR__) && defined(__GNUC__)
     #define FS_STRING
@@ -109,56 +92,53 @@ void httpTrx_UARTdebug_print(char *str)
   #define FS(s) s
   //#define Serial.print(s) do{printf("%s", s);}while(0)
 #endif
-/******************************************************************************************/
 
-#define nt_debug_print(d) do{Serial.print(d);}while(0)
 
 /******************************************************************************************/
- int8_t tcp_client_available(void)
+int8_t tcp_client_available(TRXWR *trxwr)
 {
     #if defined(__AVR__) && defined(__GNUC__)
-    return pclient->available();
+    return trxwr->client->available();
     #elif
     #endif
 }
-int8_t tcp_client_connected(void)
+int8_t tcp_client_connected(TRXWR *trxwr)
 {
     #if defined(__AVR__) && defined(__GNUC__)
-    return pclient->connected();
+    return trxwr->client->connected();
     #elif
     #endif
 }
-void tcp_client_stop(void)
+void tcp_client_stop(TRXWR *trxwr)
 {
     #if defined(__AVR__) && defined(__GNUC__)
-    pclient->stop();
+    trxwr->client->stop();
     #elif
     #endif
 }
-char http_client_read_char(void) 
+char http_client_read_char(TRXWR *trxwr) 
 {
     #if defined(__AVR__) && defined(__GNUC__)
-    return pclient->read();
+    return trxwr->client->read();
     #elif
     #endif
 }
 /******************************************************************************************/
 /*Print standard (RAM)*/
-void http_print(const char *s)
+void http_print(TRXWR *trxwr, const char *s)
 {
     #if defined(__AVR__) && defined(__GNUC__)
-          pclient->print(s);
+          trxwr->client->print(s);
     #elif
-    
     #endif
 }
 /******************************************************************************************/
-void http_printk(const char *s)
+void http_printk(TRXWR *trxwr, const char *s)
 {
     #ifdef FS_STRING
-        pclient->print(reinterpret_cast <const __FlashStringHelper *> (s) );
+        trxwr->client->print(reinterpret_cast <const __FlashStringHelper *> (s) );
     #else
-      http_print(s);
+      http_print(trxwr, s);
     #endif
 }
 /******************************************************************************************/
@@ -195,42 +175,48 @@ void http_send_msgbody(JSON *json, uint8_t npairs)
     }
 }
 /******************************************************************************************/
-void httpTrx_setHost(char *host)
+void httpTrx_setHost(TRXWR *trxwr, char *host)
 {
-    httpTrx.Host = host;
+    trxwr->Host = host;
 }
-void httpTrx_setURI(char *URI)
+void httpTrx_setURI(TRXWR *trxwr, char *URI)
 {
-    httpTrx.URI = URI;
-    
+    trxwr->URI = URI;
 }
-void httpTrx_setHdrLine(char *HdrLine)
+void httpTrx_setApiKey(TRXWR *trxwr, char *ApiKey)    
 {
-    httpTrx.HdrLine = HdrLine;
+    trxwr->ApiKey= ApiKey;
 }
-void httpTrx_setApiKeyWrite(char *ApiKeyWrite)    
+void httpTrx_setHdrLine(TRXWR *trxwr, char *HdrLine)
 {
-    httpTrx.ApiKeyWrite = ApiKeyWrite;
+    trxwr->HdrLine = HdrLine;
 }
-void httpTrx_setApiKeyRead(char *ApiKeyRead)    
-{
-    httpTrx.ApiKeyRead = ApiKeyRead;
-}
+#define httpTrxWrite_setHost(host)          do{httpTrx_setHost(&httpTrx.trxw , host) }while(0)
+#define httpTrxWrite_setURI(URI)            do{httpTrx_setURI(&httpTrx.trxw , URI) }while(0)
+#define httpTrxWrite_setApiKey(ApiKey)      do{httpTrx_setApiKey(&httpTrx.trxw , ApiKey) }while(0)
+#define httpTrxWrite_setHdrLine(HdrLine)    do{httpTrx_setHdrLine(&httpTrx.trxw , HdrLine) }while(0)
+
+#define httpTrxRead_setHost(host)          do{httpTrx_setHost(&httpTrx.trxr , host) }while(0)
+#define httpTrxRead_setURI(URI)            do{httpTrx_setURI(&httpTrx.trxr , URI) }while(0)
+#define httpTrxRead_setApiKey(ApiKey)      do{httpTrx_setApiKey(&httpTrx.trxr , ApiKey) }while(0)
+#define httpTrxRead_setHdrLine(HdrLine)    do{httpTrx_setHdrLine(&httpTrx.trxr , HdrLine) }while(0)
+
 /******************************************************************************************/
-int8_t http_trx_request_msg(JSON *json, uint8_t npairs)//send the request message to HTTP server
+int8_t http_trx_request_msg(TRXWR *trxwr, JSON *json, uint8_t npairs)//send the request message to HTTP server
 {
     int8_t cod_ret = 0;
     char buff[20];
     /*1) Request Line*/
-    http_printk(FS("POST "));http_print(httpTrx.URI);http_printk(FS(" HTTP/1.1\n\r"));
+    http_printk(FS("POST "));http_print(trxwr->URI);http_printk(FS(" HTTP/1.1\n\r"));
     
     /*2) Header lines*/
-    http_printk(FS("Host: "));http_print(httpTrx.Host);http_printk(FS("\n\r"));
-    http_printk(FS("Connection: close\r\n"));   //http_printk(FS("Connection: keep-alive\r\n"));//HTTP persistent connection
+    http_printk(FS("Host: "));http_print(trxwr->Host);http_printk(FS("\n\r"));
+    http_printk(FS("Connection: close\r\n"));   
+    //http_printk(FS("Connection: keep-alive\r\n"));//HTTP persistent connection
     http_printk(FS("Content-Type: application/json\n\r"));
     
-    if (httpTrx.HdrLine != NULL)
-        {http_print(httpTrx.HdrLine);}
+    if (trxwr->HdrLine != NULL)
+        {http_print(trxwr->HdrLine);}
     
     http_printk(FS("User-Agent: Agent/1.00\n\r"));
     http_printk(FS("Content-Length: "));
@@ -249,9 +235,6 @@ int8_t http_trx_request_msg(JSON *json, uint8_t npairs)//send the request messag
     cod_ret = 1;
     return cod_ret;
 }
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-/******************************************************************************************/
 /*******************************************************************************************
 HTTP transaction manager:
 
@@ -347,46 +330,41 @@ const unsigned long http_trx_readbuffer_ktime = 10;//ms
 unsigned long client_stop_in_ktime= 700;//ms
 unsigned long http_trx_response_msg_ktimeout = 1000;//ms
 
-int8_t http_trx_response_msg(void)
+int8_t http_trx_response_msg(TRXWR *trxwr, char *outmsg)
 {
-    static int8_t sm0;
-    static int8_t sm1;
-    static unsigned long tmr_response_msg_timeout;
-    static unsigned long tmr_client_stop;
     unsigned long tmr_readbuffer;
-    int8_t cod_ret = 0;
     char c;
-    static uint16_t idx;
-    char *prx_buffer;
-    if (sm0 == 0)
+    
+    int8_t cod_ret = 0;
+    
+    if (trxwr->respMsg.sm0 == 0)
     {
-        tmr_response_msg_timeout = __millis();
+        trxwr->respMsg.tmr_response_msg_timeout = __millis();
         idx = 0;
-        sm1 = 0;
-        sm0++;
+        trxwr->respMsg.sm1 = 0;
+        trxwr->respMsg.sm0++;
     }
-    if (sm0 == 1)
+    if (trxwr->respMsg.sm0 == 1)
     {
         tmr_readbuffer = __millis();
-        prx_buffer = http_trx_get_rx_buffer();
+        
         do
         {
-            if (tcp_client_available())
+            if (tcp_client_available(trxwr))
             {
-                c = http_client_read_char();//client.read();
-                nt_debug_print(c);          //Serial.print(c);
+                c = http_client_read_char(trxwr);
+                httpTrx_UARTdebug_print(trxwr, c);
 
-                if (prx_buffer!= NULL)
+                if (outmsg!= NULL)
                 {
-                    prx_buffer[idx] = c;
-                    if (++idx >= HTTP_TRX_RX_BUFFER_MAX_SIZE)
+                    outmsg[trxwr->respMsg.idx] = c;
+                    if (++trxwr->respMsg.idx >= HTTP_TRX_RX_BUFFER_MAX_SIZE)
                     {
-                        idx = 0;//as circular buffer
+                        trxwr->respMsg.idx = 0;//as circular buffer
                     }
                 }
-
-                /*if (c == 'LAST_CHAR_BREAKING')
-                	break;				*/
+                //if (c == 'LAST_CHAR_BREAKING')
+                //	break;
             }
             else
             {
@@ -396,33 +374,33 @@ int8_t http_trx_response_msg(void)
         }
         while ((__millis() - tmr_readbuffer) <= http_trx_readbuffer_ktime);  //CPU assigned for window
 
-        if (sm1 == 0)
+        if (trxwr->respMsg.sm1 == 0)
         {
-            if (!tcp_client_connected())
+            if (!tcp_client_connected(trxwr))
             {
                 if (client_stop_in_ktime > http_trx_response_msg_ktimeout)
                 {
                     client_stop_in_ktime = http_trx_response_msg_ktimeout;
                 }
-                tmr_client_stop = __millis();
-                sm1++;
+                trxwr->respMsg.tmr_client_stop = __millis();
+                trxwr->respMsg.sm1++;
             }
         }
         else//sm1 == 1
         {
-            if ( (__millis() - tmr_client_stop) >= client_stop_in_ktime ) //let a time to read all rx buffer
+            if ( (__millis() - trxwr->respMsg.tmr_client_stop) >= client_stop_in_ktime ) //let a time to read all rx buffer
             {
                 tcp_client_stop();
-                sm0 = 0;
+                trxwr->respMsg.sm0 = 0;
                 cod_ret = 1;
             }
         }
 
         //connection time-out
-        if ( (__millis() - tmr_response_msg_timeout) >= http_trx_response_msg_ktimeout) //abort and stop conection
+        if ( (__millis() - trxwr->respMsg.tmr_response_msg_timeout) >= http_trx_response_msg_ktimeout) //abort and stop conection
         {
             tcp_client_stop();
-            sm0 = 0;
+            trxwr->respMsg.sm0 = 0;
             cod_ret = 1;
         }
     }
@@ -451,52 +429,38 @@ connection information between transactions).
 void ShowSocketStatus(void);
 #endif
 
-//void httpTrx_setServerDomain(char *domain)
-//{
-//    httpTrx.Sdomain = domain;
-//}
-//void httpTrx_setServerIP(uint8_t *IP)
-//{
-//    httpTrx.Sipaddr = IP;
-//}
-//void httpTrx_setPort(uint16_t port)
-//{
-//    httpTrx.Sport = port;
-//}
-void httpTrx_setupServerByDomain(char *domain, uint16_t port)
+void httpTrx_setupServerByDomain(TRXWR *trxwr, char *domain, uint16_t port)
 {
-    httpTrx.Sdomain = domain;
-    httpTrx.Sport = port;
+    trxwr->domain = domain;
+    trxwr->port = port;
 }
-void httpTrx_setupServerByIP(uint8_t *IP, uint16_t port)
+void httpTrx_setupServerByIP(TRXWR *trxwr, uint8_t *IP, uint16_t port)
 {
-    httpTrx.Sipaddr = IP;
-    httpTrx.Sport = port;
+    trxwr->IP = IP;
+    trxwr->port = port;
 }
-
-int8_t tcp_client_connection(void)
+int8_t tcp_client_connection(TRXWR *trxwr)
 {
     int8_t cod_ret;
     
     #if defined(__AVR__) && defined(__GNUC__)
-    if (httpTrx.Sdomain != NULL)
-        cod_ret = pclient->connect(httpTrx.Sdomain, httpTrx.Sport);
+    if (trxwr->domain != NULL)
+        cod_ret = trxwr->client->connect(trxwr->domain, trxwr->port);
     else
-        cod_ret = pclient->connect(httpTrx.Sipaddr, httpTrx.Sport);
+        cod_ret = trxwr->client->connect(trxwr->IP, trxwr->port);
     #elif
     #endif
     return cod_ret;
 }
 
-//int8_t http_trx(void)
-int8_t http_trx(JSON *json, uint8_t npairs)
+int8_t http_trx(TRXWR *trxwr, JSON *json, uint8_t npairs, char *outmsg)
 {
     static int8_t sm0;
     int8_t code_ret = 0;
 
     if (sm0 == 0)// client opens a connection
     {
-        if (tcp_client_connection())
+        if (tcp_client_connection(trxwr))
         {
             sm0++;
         }
@@ -507,21 +471,21 @@ int8_t http_trx(JSON *json, uint8_t npairs)
             ShowSocketStatus();
             Serial.println(F("Socket status in error after client.stop()"));
             #endif
-            tcp_client_stop();
-   
+
+            tcp_client_stop(trxwr);
             code_ret = 1;
         }
     }
     if (sm0 == 1)//client->server: send request message
     {
-        if (http_trx_request_msg(json, npairs))
+        if (http_trx_request_msg(trxwr, json, npairs))
         {
             sm0++;
         }
     }
     if (sm0 == 2)//server->client: receive response message
     {
-        if (http_trx_response_msg())
+        if (http_trx_response_msg(trxwr, outmsg))
         {
             sm0 = 0x00;
             code_ret = 1;
@@ -540,6 +504,7 @@ int8_t http_trx(JSON *json, uint8_t npairs)
     0: Busy in HTTP job (synchronize RUN_ONCE, RUN_INTERVAL, STOP)
     1: End one HTTP job (end transaction): Is the time for parsing the http_trx_rx_buffer[]
 */
+/*
 int8_t http_trx_job(JSON *json, uint8_t npairs)
 {
     static HTTP_TRX_SET_EXEC_MODE_E last_exec_mode;
@@ -601,7 +566,7 @@ int8_t http_trx_job(JSON *json, uint8_t npairs)
     }
     return cod_ret;
 }
-
+*/
 //////////////////////////////////////////////////////////////////////////////////
 #ifdef SOCKET_DEBUG
 void ShowSocketStatus(void)

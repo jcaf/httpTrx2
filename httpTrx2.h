@@ -20,23 +20,36 @@
 
 #define HTTPTRX_DEBUG
 
-
-
-typedef struct _HTTPTRX
+typedef struct _TRXWR
 {
     /*Server*/
-    char *Sdomain;
-    uint8_t *Sipaddr;
-    uint16_t Sport;
-    //
+    char *domain;
+    uint8_t *IP;
+    uint16_t port;
+    /*connection resource*/
     char *URI;
     char *Host;
+    char *ApiKey;
     char *HdrLine;
-    //
-    char *ApiKeyWrite;
-    char *ApiKeyRead;
+    struct _TRXWRrqst//request message
+    {
+            
+    }rsqtMsg;
+    struct _TRXWRresp//response message
+    {
+        int8_t sm0;
+        int8_t sm1;
+        unsigned long tmr_response_msg_timeout;
+        unsigned long tmr_client_stop;
+        uint32_t idx;
+    }respMsg;
     
-#ifdef HTTPTRX_DEBUG
+    #if defined(__AVR__) && defined(__GNUC__)  
+        Client *client;
+    #elif
+    #endif
+    
+    #ifdef HTTPTRX_DEBUG
     struct _HTTPTRX_Debug
     {
        struct _HTTPTRX_Debug_bf
@@ -44,9 +57,19 @@ typedef struct _HTTPTRX
            unsigned enabled:1;
            unsigned __a:7;
        }bf;
-       PTRFX_retVOID_arg1_PCHAR UART_print;
+       //PTRFX_retVOID_arg1_PCHAR UART_print;
     }dbg;
-#endif    
+    #endif
+}TRXWR;
+
+typedef struct _HTTPTRX
+{
+    TRXWR trxw;
+    TRXWR trxr;
+    //
+    #ifdef HTTPTRX_DEBUG
+       PTRFX_retVOID_arg1_PCHAR UART_print;
+    #endif        
 }HTTPTRX;
 
 typedef struct _JSON
