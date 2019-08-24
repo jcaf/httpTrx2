@@ -31,10 +31,12 @@ typedef struct _TRXWR
     char *Host;
     char *ApiKey;
     char *HdrLine;
+    
     struct _TRXWRrqst//request message
     {
             
     }rsqtMsg;
+    
     struct _TRXWRresp//response message
     {
         int8_t sm0;
@@ -60,6 +62,7 @@ typedef struct _TRXWR
        //PTRFX_retVOID_arg1_PCHAR UART_print;
     }dbg;
     #endif
+
 }TRXWR;
 
 typedef struct _HTTPTRX
@@ -77,31 +80,54 @@ typedef struct _JSON
     char *name;
     char *strval;
 }JSON;
-
-
-#if defined(__AVR__) && defined(__GNUC__)
-    void httpTrx_setClient(Client* _pclient);
-#endif
+extern  HTTPTRX httpTrx;
 
 int8_t NIC_begin(uint8_t *MAC, uint8_t *IPstatic);
 
-void httpTrx_setupServerByDomain(char *domain, uint16_t port);
-void httpTrx_setupServerByIP(uint8_t *IP, uint16_t port);
-
+#if defined(__AVR__) && defined(__GNUC__)
+    void httpTrx_setClient(TRXWR *trxwr, Client* client);
+    
+    #define httpTrxWrite_setClient(client) do{httpTrx_setClient(&httpTrx.trxw, client);}while(0)
+    #define httpTrxRead_setClient(client) do{httpTrx_setClient(&httpTrx.trxr, client);}while(0)
+#endif
 
 #ifdef HTTPTRX_DEBUG
-void httpTrx_UARTdebug_enabled(BOOLEAN_T enabled, PTRFX_retVOID_arg1_PCHAR UART_print);
-void httpTrx_UARTdebug_print(char *str);
-#endif
+    void httpTrx_UARTdebug_enabled(TRXWR *trxwr, BOOLEAN_T _bool);
+    void httpTrx_UARTdebug_print(TRXWR *trxwr, char *str);
     
-void httpTrx_setHost(char *host);
-void httpTrx_setURI(char *URI);
-void httpTrx_setHdrLine(char *HdrLine);
-void httpTrx_setApiKeyWrite(char *ApiKeyWrite);
+    #define httpTrxWrite_UARTdebug_enabled(_bool)   do{httpTrx_UARTdebug_enabled(&httpTrx.trxw, _bool);}while(0)
+    #define httpTrxWrite_UARTdebug_print(str)       do{httpTrx_UARTdebug_print(&httpTrx.trxw, str);}while(0)
 
-void httpTrx_setApiKeyRead(char *ApiKeyRead);       
-    
-    
+    #define httpTrxRead_UARTdebug_enabled(_bool)   do{httpTrx_UARTdebug_enabled(&httpTrx.trxr, _bool);}while(0)
+    #define httpTrxRead_UARTdebug_print(str)       do{httpTrx_UARTdebug_print(&httpTrx.trxr, str);}while(0)
+
+    void httpTrx_UARTdebug_setPrintFx(PTRFX_retVOID_arg1_PCHAR UART_print);
+#endif
+
+void httpTrx_setHost(TRXWR *trxwr, char *host);
+void httpTrx_setURI(TRXWR *trxwr, char *URI);
+void httpTrx_setApiKey(TRXWR *trxwr, char *ApiKey);
+void httpTrx_setHdrLine(TRXWR *trxwr, char *HdrLine);
+
+#define httpTrxWrite_setHost(host)          do{httpTrx_setHost(&httpTrx.trxw , host);}while(0)
+#define httpTrxWrite_setURI(URI)            do{httpTrx_setURI(&httpTrx.trxw , URI);}while(0)
+#define httpTrxWrite_setApiKey(ApiKey)      do{httpTrx_setApiKey(&httpTrx.trxw , ApiKey);}while(0)
+#define httpTrxWrite_setHdrLine(HdrLine)    do{httpTrx_setHdrLine(&httpTrx.trxw , HdrLine);}while(0)
+
+#define httpTrxRead_setHost(host)          do{httpTrx_setHost(&httpTrx.trxr , host);}while(0)
+#define httpTrxRead_setURI(URI)            do{httpTrx_setURI(&httpTrx.trxr , URI);}while(0)
+#define httpTrxRead_setApiKey(ApiKey)      do{httpTrx_setApiKey(&httpTrx.trxr , ApiKey);}while(0)
+#define httpTrxRead_setHdrLine(HdrLine)    do{httpTrx_setHdrLine(&httpTrx.trxr , HdrLine);}while(0)
+
+
+void httpTrx_setupServerByDomain(TRXWR *trxwr, char *domain, uint16_t port);
+void httpTrx_setupServerByIP(TRXWR *trxwr, uint8_t *IP, uint16_t port);
+#define httpTrxWrite_setupServerByDomain(domain,port) do{httpTrx_setupServerByDomain(&httpTrx.trxw, domain, port);}while(0)
+#define httpTrxWrite_setupServerByIP(IP,port) do{httpTrx_setupServerByIP(&httpTrx.trxw, IP, port);}while(0)
+
+#define httpTrxRead_setupServerByDomain(domain,port) do{httpTrx_setupServerByDomain(&httpTrx.trxr, domain, port);}while(0)
+#define httpTrxRead_setupServerByIP(IP,port) do{httpTrx_setupServerByIP(&httpTrx.trxr, IP, port);}while(0)
+
 /******************************************************************************************/
 typedef enum _http_trx_set_exec_mode_e
 {

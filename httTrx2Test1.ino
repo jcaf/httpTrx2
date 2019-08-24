@@ -41,6 +41,7 @@ void UART_setup(void)
 void UART_print(char *str)
 {
     #if defined(__AVR__) && defined(__GNUC__)
+    Serial.print(str);
     #elif
     #endif
 }
@@ -52,25 +53,24 @@ void setup(void)
     spi_deselect_devices();
     
     UART_setup();
-    httpTrx_UARTdebug_enabled(TRUE, UART_print);//library point to this funcion()
+    httpTrxWrite_UARTdebug_enabled(TRUE);
     
+    httpTrx_UARTdebug_setPrintFx(UART_print);//library point to this funcion()
     //1) local network setting
     NIC_begin(MAC, IP);
     delay(1000);
-    Serial.print(Ethernet.localIP());
+    //Serial.print(Ethernet.localIP());
     
-    httpTrx_setClient( (Client *) &client);//Only for Arduino
+    httpTrxWrite_setClient((Client*)&client);//Only for Arduino
     
     //2) Client config connection to server
-    httpTrx_setupServerByIP(IPaddr_server, 80);
+    httpTrxWrite_setupServerByIP(IPaddr_server, 80);
     //client.setTimeout(1000);
     
     //3) Set HTTP transaction
-    httpTrx_setURI("/v0/devices/data/add");
-    httpTrx_setHost("api.quanticoservices.net");
-    httpTrx_setHdrLine("Api_Key_Write: 2a6559e6b2750d60\
-                            \r\nDevice_id: 1539814055_5c50372e3f5582ed8646\
-                            \r\n");//must be end with \r\n
+    httpTrxWrite_setURI("/v0/devices/data/add");
+    httpTrxWrite_setHost("api.quanticoservices.net");
+    httpTrxWrite_setApiKey("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjE1MzU0MjczNTVfcGFibG8iLCJkZXZpY2VfaWQiOiI1YjdmMjc3ZmVmNGFkNjgxYjIwM2I0NDQiLCJlbWFpbCI6InBhYmxvZG9uYXlyZUBnbWFpbC5jb20iLCJpYXQiOjE1NjQwODgwMjR9.G8BWFQ1O_KH4hVfibYSlGd-UqQLdWZ1d_sxonbhqANc");
 
     
     //4) Http transaction setting
