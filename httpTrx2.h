@@ -71,18 +71,24 @@ typedef struct _HTTPTRX
     TRXWR trxr;
     //
     #ifdef HTTPTRX_DEBUG
-       PTRFX_retVOID_arg1_PCHAR UART_print;
+        #if defined(__AVR__) && defined(__GNUC__)  
+            PTRFX_retVOID_arg1_PCHAR_arg2_INT8_T UART_print;
+        #elif
+            PTRFX_retVOID_arg1_PCHAR UART_print;
+        #endif
     #endif        
 }HTTPTRX;
+
+extern  HTTPTRX httpTrx;
 
 typedef struct _JSON
 {
     char *name;
     char *strval;
 }JSON;
-extern  HTTPTRX httpTrx;
 
 int8_t NIC_begin(uint8_t *MAC, uint8_t *IPstatic);
+void NIC_getMyIP(char *str, uint16_t sizebuff);
 
 #if defined(__AVR__) && defined(__GNUC__)
     void httpTrx_setClient(TRXWR *trxwr, Client* client);
@@ -93,15 +99,19 @@ int8_t NIC_begin(uint8_t *MAC, uint8_t *IPstatic);
 
 #ifdef HTTPTRX_DEBUG
     void httpTrx_UARTdebug_enabled(TRXWR *trxwr, BOOLEAN_T _bool);
-    void httpTrx_UARTdebug_print(TRXWR *trxwr, char *str);
+    void httpTrx_UARTdebug_print(TRXWR *trxwr, char *str, int8_t mode);
     
     #define httpTrxWrite_UARTdebug_enabled(_bool)   do{httpTrx_UARTdebug_enabled(&httpTrx.trxw, _bool);}while(0)
-    #define httpTrxWrite_UARTdebug_print(str)       do{httpTrx_UARTdebug_print(&httpTrx.trxw, str);}while(0)
+    //#define httpTrxWrite_UARTdebug_print(str)       do{httpTrx_UARTdebug_print(&httpTrx.trxw, str);}while(0)
 
     #define httpTrxRead_UARTdebug_enabled(_bool)   do{httpTrx_UARTdebug_enabled(&httpTrx.trxr, _bool);}while(0)
-    #define httpTrxRead_UARTdebug_print(str)       do{httpTrx_UARTdebug_print(&httpTrx.trxr, str);}while(0)
+    //#define httpTrxRead_UARTdebug_print(str)       do{httpTrx_UARTdebug_print(&httpTrx.trxr, str);}while(0)
 
+    #if defined(__AVR__) && defined(__GNUC__)
+    void httpTrx_UARTdebug_setPrintFx(PTRFX_retVOID_arg1_PCHAR_arg2_INT8_T UART_print);
+    #elif
     void httpTrx_UARTdebug_setPrintFx(PTRFX_retVOID_arg1_PCHAR UART_print);
+    #endif
 #endif
 
 void httpTrx_setHost(TRXWR *trxwr, char *host);
@@ -155,8 +165,6 @@ enum _http_trx_set_status
 };
 
 #define HTTP_TRX_RX_BUFFER_MAX_SIZE 400
-
-
 
 
 #ifdef __cplusplus
