@@ -120,7 +120,7 @@ void setup(void)
     // char strval[30];
     // json_cFloatArr(value, sizeof(strval)/sizeof(strval[0]), strval);
     //json[0].strval = strval;
-    json[0].strval = "[7,123,4,4]";
+    json[0].strval = "[7,865,4,4]";
 }
 
 char outmsg[HTTP_TRX_RX_BUFFER_MAX_SIZE];

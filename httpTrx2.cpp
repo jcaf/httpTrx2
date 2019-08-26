@@ -99,7 +99,7 @@ void NIC_getMyIP(char *str, uint16_t sizebuff)
   //#define Serial.print(s) do{printf("%s", s);}while(0)
 #endif
 /******************************************************************************************/
-int16_t tcp_client_nBytesAvailable(TRXWR *trxwr)
+int16_t tcpClient_getBytesAvailable(TRXWR *trxwr)
 {
     #if defined(__AVR__) && defined(__GNUC__)
     
@@ -107,21 +107,21 @@ int16_t tcp_client_nBytesAvailable(TRXWR *trxwr)
     #elif
     #endif
 }
-int8_t tcp_client_connected(TRXWR *trxwr)
+int8_t tcpClient_connected(TRXWR *trxwr)
 {
     #if defined(__AVR__) && defined(__GNUC__)
     return trxwr->client->connected();
     #elif
     #endif
 }
-void tcp_client_stop(TRXWR *trxwr)
+void tcpClient_stop(TRXWR *trxwr)
 {
     #if defined(__AVR__) && defined(__GNUC__)
     trxwr->client->stop();
     #elif
     #endif
 }
-char http_client_read_char(TRXWR *trxwr) 
+char httpClient_readChar(TRXWR *trxwr) 
 {
     #if defined(__AVR__) && defined(__GNUC__)
     return trxwr->client->read();
@@ -149,7 +149,7 @@ void http_printk(TRXWR *trxwr, char *s)
     #endif
 }
 /******************************************************************************************/
-uint32_t getContentLength(JSON *json, uint8_t npairs)
+uint32_t json_getContentLength(JSON *json, uint8_t npairs)
 {
     uint32_t acc=0;
     int i;
@@ -201,7 +201,7 @@ void httpTrx_setHdrLine(TRXWR *trxwr, char *HdrLine)
     trxwr->HdrLine = HdrLine;
 }
 /******************************************************************************************/
-int8_t http_trx_request_msg(TRXWR *trxwr, JSON *json, uint8_t npairs)//send the request message to HTTP server
+int8_t httpTrx_requestMsg(TRXWR *trxwr, JSON *json, uint8_t npairs)//send the request message to HTTP server
 {
     int8_t cod_ret = 0;
     char buff[20];
@@ -218,7 +218,7 @@ int8_t http_trx_request_msg(TRXWR *trxwr, JSON *json, uint8_t npairs)//send the 
     if (trxwr->HdrLine != NULL)
         {http_print(trxwr, trxwr->HdrLine);}
     http_printk(trxwr, FS("Content-Length: "));
-    uint32toa(getContentLength(json, npairs) ,  buff, sizeof(buff)/sizeof(buff[0]));
+    uint32toa(json_getContentLength(json, npairs) ,  buff, sizeof(buff)/sizeof(buff[0]));
     http_print(trxwr, buff);http_printk(trxwr, FS("\r\n"));
     
     /*3) Send New Line*/
@@ -232,7 +232,10 @@ int8_t http_trx_request_msg(TRXWR *trxwr, JSON *json, uint8_t npairs)//send the 
 /******************************************************************************************
         HTTP transaction: response message
 
-I’ve had a TCPClient disconnect but still have the connected property == true. So it seams the only way to tell is if a Read from the network stream returns 0 bytes. So right now I’m assuming it is disconnected if it returns 0 bytes. I was wondering if there is a better way?
+I’ve had a TCPClient disconnect but still have the connected property == true. 
+So it seams the only way to tell is if a Read from the network stream returns 0 bytes. 
+So right now I’m assuming it is disconnected if it returns 0 bytes. I was wondering if there is a better way?
+ 
 Here is documented REMARKS section for tcpClient.Connected property:
 "The Connected property gets the connection state of the Client socket as of the last I/O
 operation. When it returns false, the Client socket was either never connected, or is no
@@ -246,22 +249,29 @@ should assume the socket is connected, and gracefully handle failed transmission
 So, I thing yours 'Read' way is the best one and you may forget Connected property
 alltogether!
 
-http_trx_readbuffer_ktime: Is the k-time of CPU (and resources) assigned to read data from the buffer if available.
-
-client_stop_in_ktime: If the Server disconnect the client, client has a k-time to read all possible available data from rx buffer. After this time,the connection must be end sending client.stop()
-
-http_trx_response_msg_ktimeout: Is the global k-timeout assigned for all recepcion in an HTTP Transfer response-mode.
-
+KTIMEOUT_READBUFFER: Is the k-time of CPU (and resources) assigned to read data from the buffer if available.
+KTIMEOUT_AFTERSERVERDISCONNECTED_FLUSHBUFFER: If the Server disconnect the client, client has a k-time to read all possible available data from rx buffer. After this time,the connection must be end sending client.stop()
+KTIMEOUT_RESPONSEMSG_TOTALTIMEOUT: Is the global k-timeout assigned for all recepcion in an HTTP Transfer response-mode.
     return:
     0: Busy
     1: End response msg
 *******************************************************************************************/
+//const unsigned long KTIMEOUT_READBUFFER = 10;//ms
+//unsigned long KTIMEOUT_AFTERSERVERDISCONNECTED_FLUSHBUFFER= 700;//ms
+//unsigned long KTIMEOUT_RESPONSEMSG_TOTALTIMEOUT = 2000;//ms
+//struct _httpTrx_responseMsg_ktimeOut
+//{
+//}ktimeOut;
+#define KTIMEOUT_READBUFFER                             10UL//ms
+#define KTIMEOUT_AFTERSERVERDISCONNECTED_FLUSHBUFFER    700UL//ms
+#define KTIMEOUT_RESPONSEMSG_TOTALTIMEOUT               2000UL//ms
 
-const unsigned long http_trx_readbuffer_ktime = 10;//ms
-unsigned long client_stop_in_ktime= 700;//ms
-unsigned long http_trx_response_msg_ktimeout = 2000;//ms
+#if KTIMEOUT_AFTERSERVERDISCONNECTED_FLUSHBUFFER > KTIMEOUT_RESPONSEMSG_TOTALTIMEOUT
+    #undef KTIMEOUT_AFTERSERVERDISCONNECTED_FLUSHBUFFER
+    #define KTIMEOUT_AFTERSERVERDISCONNECTED_FLUSHBUFFER KTIMEOUT_RESPONSEMSG_TOTALTIMEOUT
+#endif // KTIMEOUT_AFTERSERVERDISCONNECTED_FLUSHBUFFER
 
-int8_t http_trx_response_msg(TRXWR *trxwr, char *outmsg)
+int8_t httpTrx_responseMsg(TRXWR *trxwr, char *outmsg)
 {
     unsigned long tmr_readbuffer;
     char c;
@@ -270,7 +280,7 @@ int8_t http_trx_response_msg(TRXWR *trxwr, char *outmsg)
     
     if (trxwr->respMsg.sm0 == 0)
     {
-        trxwr->respMsg.tmr_response_msg_timeout = __millis();
+        trxwr->respMsg.timer.responseMsg_timeout = __millis();
         trxwr->respMsg.idx = 0;
         trxwr->respMsg.sm1 = 0;
         trxwr->respMsg.sm0++;
@@ -280,9 +290,9 @@ int8_t http_trx_response_msg(TRXWR *trxwr, char *outmsg)
         tmr_readbuffer = __millis();
         do
         {
-            if (tcp_client_nBytesAvailable(trxwr) > 0)//buffer>0
+            if (tcpClient_getBytesAvailable(trxwr) > 0)//buffer>0
             {
-                c = http_client_read_char(trxwr);
+                c = httpClient_readChar(trxwr);
                 //httpTrx_UARTdebug_print(trxwr, c);
                 Serial.write(c);
                     
@@ -301,44 +311,33 @@ int8_t http_trx_response_msg(TRXWR *trxwr, char *outmsg)
             {
                 break;
             }
-
         }
-        while ((__millis() - tmr_readbuffer) <= http_trx_readbuffer_ktime);  //CPU assigned for window
+        while ((__millis() - tmr_readbuffer) <= KTIMEOUT_READBUFFER);  //CPU assigned for window
 
         if (trxwr->respMsg.sm1 == 0)
         {
-            if (!tcp_client_connected(trxwr))
+            if (!tcpClient_connected(trxwr))
             {
-                if (client_stop_in_ktime > http_trx_response_msg_ktimeout)
-                {
-                    client_stop_in_ktime = http_trx_response_msg_ktimeout;
-                }
-                trxwr->respMsg.tmr_client_stop = __millis();
+                trxwr->respMsg.timer.afterServerDisconneted_flushbuffer = __millis();
                 trxwr->respMsg.sm1++;
-                
-                Serial.print("\nse desconecto\n");
             }
         }
-        else//sm1 == 1
+        else
         {
-            if ( (__millis() - trxwr->respMsg.tmr_client_stop) >= client_stop_in_ktime ) //let a time to read all rx buffer
+            if ( (__millis() - trxwr->respMsg.timer.afterServerDisconneted_flushbuffer) >= KTIMEOUT_AFTERSERVERDISCONNECTED_FLUSHBUFFER ) //let a time to read all rx buffer
             {
-                tcp_client_stop(trxwr);
+                tcpClient_stop(trxwr);
                 trxwr->respMsg.sm0 = 0;
                 cod_ret = 1;
-                
-                //Serial.print("\nlet a time to read all rx buffer\n");
             }
         }
 
         //connection time-out
-        if ( (__millis() - trxwr->respMsg.tmr_response_msg_timeout) >= http_trx_response_msg_ktimeout) //abort and stop conection
+        if ( (__millis() - trxwr->respMsg.timer.responseMsg_timeout) >= KTIMEOUT_RESPONSEMSG_TOTALTIMEOUT) //abort and stop conection
         {
-            tcp_client_stop(trxwr);
+            tcpClient_stop(trxwr);
             trxwr->respMsg.sm0 = 0;
             cod_ret = 1;
-            
-            //Serial.print("\nconnection time-out\n");
         }
     }
     return cod_ret;
@@ -376,7 +375,7 @@ void httpTrx_setupServerByIP(TRXWR *trxwr, uint8_t *IP, uint16_t port)
     trxwr->IP = IP;
     trxwr->port = port;
 }
-int8_t tcp_client_connection(TRXWR *trxwr)
+int8_t tcpClient_connection(TRXWR *trxwr)
 {
     int8_t cod_ret;
     
@@ -397,7 +396,7 @@ int8_t http_trx(TRXWR *trxwr, JSON *json, uint8_t npairs, char *outmsg)
 
     if (sm0 == 0)// client opens a connection
     {
-        if (tcp_client_connection(trxwr))
+        if (tcpClient_connection(trxwr))
         {
             sm0++;
         }
@@ -409,20 +408,20 @@ int8_t http_trx(TRXWR *trxwr, JSON *json, uint8_t npairs, char *outmsg)
             Serial.println(F("Socket status in error after client.stop()"));
             #endif
 
-            tcp_client_stop(trxwr);
+            tcpClient_stop(trxwr);
             code_ret = 1;
         }
     }
     if (sm0 == 1)//client->server: send request message
     {
-        if (http_trx_request_msg(trxwr, json, npairs))
+        if (httpTrx_requestMsg(trxwr, json, npairs))
         {
             sm0++;
         }
     }
     if (sm0 == 2)//server->client: receive response message
     {
-        if (http_trx_response_msg(trxwr, outmsg))
+        if (httpTrx_responseMsg(trxwr, outmsg))
         {
             sm0 = 0x00;
             code_ret = 1;
@@ -438,134 +437,129 @@ int8_t http_trx(TRXWR *trxwr, JSON *json, uint8_t npairs, char *outmsg)
 
 /*******************************************************************************************
 HTTP transaction manager:
-
 Exec.mode:
 
 WAIT_NEW_EXEC_MODE = -1,
-    STOP = 0,
-    RUN_ONCE,
-    RUN_INTERVAL,
+STOP = 0,
+RUN_ONCE,
+RUN_INTERVAL,
 
-    Status:
+Status:
 
-    IDLE,
-    RUNNING
+IDLE,
+RUNNING
 ********************************************************************************************/
-struct _http_trx_t
+struct _httpTrx_t
 {
-    HTTP_TRX_SET_EXEC_MODE_E exec_mode;
+    HTTP_TRX_SET_EXEC_MODE_E execMode;
     int8_t status;
     unsigned long exec_interval_ms;//exec with interval
     char *rx_buffer;
 };
-struct _http_trx_t http_trx_t =
+struct _httpTrx_t httpTrx_t =
 {
     EM_WAIT_NEW_EXEC_MODE_E,//-1
     IDLE,//0
     0,
     NULL
 };
-void http_trx_set_status(int8_t status)
+void httpTrx_setStatus(int8_t status)
 {
-    http_trx_t.status = status;
+    httpTrx_t.status = status;
 }
-int8_t http_trx_get_status(void)
+int8_t httpTrx_getStatus(void)
 {
-    return http_trx_t.status;
+    return httpTrx_t.status;
 }
-void http_trx_set_exec_interval_ms(unsigned long interval_ms)
+void httpTrx_setExec_interval_ms(unsigned long interval_ms)
 {
-    http_trx_t.exec_interval_ms = interval_ms;
+    httpTrx_t.exec_interval_ms = interval_ms;
 }
-unsigned long http_trx_get_exec_interval_ms(void)
+unsigned long httpTrx_getExec_interval_ms(void)
 {
-    return http_trx_t.exec_interval_ms;
+    return httpTrx_t.exec_interval_ms;
 }
-void http_trx_set_rx_buffer(char *rx_buffer)
+void httpTrx_setRxBuffer(char *rx_buffer)
 {
-    http_trx_t.rx_buffer = rx_buffer;
+    httpTrx_t.rx_buffer = rx_buffer;
 }
-char *http_trx_get_rx_buffer(void)
+char *httpTrx_getRxBuffer(void)
 {
-    return http_trx_t.rx_buffer;
+    return httpTrx_t.rx_buffer;
 }
-void http_trx_set_exec_mode(HTTP_TRX_SET_EXEC_MODE exec_mode)
+void httpTrx_setExecMode(HTTP_TRX_SET_EXEC_MODE execMode)
 {
-    http_trx_t.exec_mode = exec_mode.k;
+    httpTrx_t.execMode = execMode.k;
 }
-HTTP_TRX_SET_EXEC_MODE_E http_trx_get_exec_mode(void)
+HTTP_TRX_SET_EXEC_MODE_E httpTrx_getExecMode(void)
 {
-    return http_trx_t.exec_mode;
+    return httpTrx_t.execMode;
 }
-
 /*
-    return:
-    0: Busy in HTTP job (synchronize RUN_ONCE, RUN_INTERVAL, STOP)
-    1: End one HTTP job (end transaction): Is the time for parsing the http_trx_rx_buffer[]
+return:
+0: Busy in HTTP job (synchronize RUN_ONCE, RUN_INTERVAL, STOP)
+1: End one HTTP job (end transaction): Is the time for parsing the http_trx_rx_buffer[]
 */
-/*
 int8_t http_trx_job(JSON *json, uint8_t npairs)
 {
     static HTTP_TRX_SET_EXEC_MODE_E last_exec_mode;
-    static int8_t _run_interval=0;
+    static int8_t runInterval_sm0=0;
     static unsigned long tmr_run_interval;
     int8_t cod_ret = 0;
-
-    if (http_trx_get_status() == IDLE)
+    
+    if (httpTrx_t.status == IDLE)
     {
-        last_exec_mode = http_trx_get_exec_mode();
+        last_exec_mode = httpTrx_t.execMode;
 
-        if ( last_exec_mode > EM_WAIT_NEW_EXEC_MODE_E)
+        if (last_exec_mode > EM_WAIT_NEW_EXEC_MODE_E)
         {
             if (last_exec_mode == EM_RUN_INTERVAL_E)
             {
-                if (_run_interval == 0)
+                if (runInterval_sm0 == 0)
                 {
-                    http_trx_set_status(RUNNING);//first time
-                    _run_interval++;	//exit and execute
+                    httpTrx_t.status = RUNNING;
+                    runInterval_sm0++;	
+                    /*execute 1 HTTP transaction, then comeback to here with runInterval_sm0=1*/
                 }
-                else if (_run_interval == 1)//for next evaluation
+                else if (runInterval_sm0 == 1)//for next evaluation
                 {
                     tmr_run_interval = __millis();
-                    _run_interval++;
+                    runInterval_sm0++;
                 }
-                else if (_run_interval == 2)
+                else if (runInterval_sm0 == 2)
                 {
-                    if ( (__millis()-tmr_run_interval) >= http_trx_get_exec_interval_ms())
+                    if ( (__millis()-tmr_run_interval) >= httpTrx_t.exec_interval_ms)
                     {
-                        _run_interval = 0x00;
+                        runInterval_sm0 = 0x00;
                     }
                 }
             }
             else if (last_exec_mode == EM_RUN_ONCE_E)
             {
-                http_trx_set_status(RUNNING);
+                httpTrx_t.status = RUNNING;
             }
             else//STOP
             {
-                http_trx_set_exec_mode(EM_WAIT_NEW_EXEC_MODE);
-                //
-                _run_interval = 0x00;	//reset
+                httpTrx_setExecMode(EM_WAIT_NEW_EXEC_MODE);
+                runInterval_sm0 = 0x00;	//reset
             }
         }
-
     }
     else
     {
-        if (http_trx(json, npairs) == 1)//end?
+        if (1)//(http_trx(json, npairs) == 1)//end?
         {
-            http_trx_set_status(IDLE);
+            httpTrx_t.status = IDLE;
 
             if (last_exec_mode == EM_RUN_ONCE_E)
-            {
-                http_trx_set_exec_mode(EM_STOP);
-            }
-            cod_ret = 1;
+                {httpTrx_setExecMode(EM_STOP);}
+            
+            cod_ret = 1;//1 execution was completed
         }
     }
     return cod_ret;
 }
-*/
+
 //////////////////////////////////////////////////////////////////////////////////
 #ifdef SOCKET_DEBUG
 void ShowSocketStatus(void)

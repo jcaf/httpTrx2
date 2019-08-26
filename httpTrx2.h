@@ -14,7 +14,6 @@
 #ifndef HTTPTRX2_H
 #define HTTPTRX2_H
 
-
 #include "system.h"
 #include "types.h"
 
@@ -32,17 +31,20 @@ typedef struct _TRXWR
     char *ApiKey;
     char *HdrLine;
     
-    struct _TRXWRrqst//request message
-    {
-            
-    }rsqtMsg;
+//    struct _TRXWRrqst//request message
+//    {
+//    }rsqtMsg;
     
     struct _TRXWRresp//response message
     {
         int8_t sm0;
         int8_t sm1;
-        unsigned long tmr_response_msg_timeout;
-        unsigned long tmr_client_stop;
+        struct _TRXWRresp_tmr
+        {
+            unsigned long responseMsg_timeout;
+            unsigned long afterServerDisconneted_flushbuffer;
+        }timer;
+        
         uint32_t idx;
     }respMsg;
     
