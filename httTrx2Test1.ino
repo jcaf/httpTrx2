@@ -12,9 +12,9 @@ uint8_t MAC[6]= { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 uint8_t IPaddr_server[]={192, 168, 1, 54};
 
 //HTTP transaction: receive response message from Server (if parsing)
-//#define HTTP_TRX_RX_BUFFER
-#ifdef HTTP_TRX_RX_BUFFER
-char http_trx_rx_buffer[HTTP_TRX_RX_BUFFER_MAX_SIZE];//as circular buffer
+//#define HTTP_TRSX_RX_BUFFER
+#ifdef HTTP_TRSX_RX_BUFFER
+char http_trx_rx_buffer[HTTP_TRSX_RX_BUFFER_MAX_SIZE];//as circular buffer
 #endif
 
 //void json_cIntegerArr
@@ -123,9 +123,9 @@ void setup(void)
     json[0].strval = "[7,865,4,4]";
 }
 
-char outmsg[HTTP_TRX_RX_BUFFER_MAX_SIZE];
+char outmsg[HTTP_TRSX_RX_BUFFER_MAX_SIZE];
 
-int8_t http_trx(TRXWR *trxwr, JSON *json, uint8_t npairs, char *outmsg);
+int8_t http_trx(TRSXWR *trxwr, JSON *json, uint8_t npairs, char *outmsg);
 
 void loop(void)
 {
@@ -134,11 +134,11 @@ void loop(void)
     if (http_trx_job())//complete a client->server transaction, then...
     {
       //its safe to read http_trx_rx_buffer[]
-        #ifdef HTTP_TRX_RX_BUFFER
+        #ifdef HTTP_TRSX_RX_BUFFER
           nt_debug_print("Printing http_trx_rx_buffer[]:\n\n");
           if (http_trx_get_rx_buffer()!= NULL)
           {
-            for (int i=0; i<HTTP_TRX_RX_BUFFER_MAX_SIZE; i++)
+            for (int i=0; i<HTTP_TRSX_RX_BUFFER_MAX_SIZE; i++)
               {nt_debug_print(http_trx_rx_buffer[i]);}  
           }
         #endif

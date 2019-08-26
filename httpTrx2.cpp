@@ -12,10 +12,10 @@
 #include <stdint.h>
 extern EthernetClient client;
 /******************************************************************************************/
-static HTTPTRX httpTrx;    
+static HTTPTRSX httpTrx;    
 /******************************************************************************************/
 #if defined(__AVR__) && defined(__GNUC__)
-    void httpTrx_setClient(TRXWR *trxwr, Client* client)
+    void httpTrx_setClient(TRSXWR *trxwr, Client* client)
     {
         trxwr->client = client;
     }
@@ -24,13 +24,13 @@ static HTTPTRX httpTrx;
 #elif
 #endif
 
-#ifdef HTTPTRX_DEBUG
-void httpTrx_UARTdebug_enabled(TRXWR *trxwr, BOOLEAN_T _bool)
+#ifdef HTTPTRSX_DEBUG
+void httpTrx_UARTdebug_enabled(TRSXWR *trxwr, BOOLEAN_T _bool)
 {
     trxwr->dbg.bf.enabled = _bool.k;
     //httpTrx.dbg.UART_print = UART_print;
 }
-void httpTrx_UARTdebug_print(TRXWR *trxwr, char *str, int8_t mode)
+void httpTrx_UARTdebug_print(TRSXWR *trxwr, char *str, int8_t mode)
 {
     if (trxwr->dbg.bf.enabled)
         {httpTrx.UART_print(str, mode);}
@@ -99,7 +99,7 @@ void NIC_getMyIP(char *str, uint16_t sizebuff)
   //#define Serial.print(s) do{printf("%s", s);}while(0)
 #endif
 /******************************************************************************************/
-int16_t tcpClient_getBytesAvailable(TRXWR *trxwr)
+int16_t tcpClient_getBytesAvailable(TRSXWR *trxwr)
 {
     #if defined(__AVR__) && defined(__GNUC__)
     
@@ -107,21 +107,21 @@ int16_t tcpClient_getBytesAvailable(TRXWR *trxwr)
     #elif
     #endif
 }
-int8_t tcpClient_connected(TRXWR *trxwr)
+int8_t tcpClient_connected(TRSXWR *trxwr)
 {
     #if defined(__AVR__) && defined(__GNUC__)
     return trxwr->client->connected();
     #elif
     #endif
 }
-void tcpClient_stop(TRXWR *trxwr)
+void tcpClient_stop(TRSXWR *trxwr)
 {
     #if defined(__AVR__) && defined(__GNUC__)
     trxwr->client->stop();
     #elif
     #endif
 }
-char httpClient_readChar(TRXWR *trxwr) 
+char httpClient_readChar(TRSXWR *trxwr) 
 {
     #if defined(__AVR__) && defined(__GNUC__)
     return trxwr->client->read();
@@ -130,7 +130,7 @@ char httpClient_readChar(TRXWR *trxwr)
 }
 /******************************************************************************************/
 /*Print standard (RAM)*/
-void http_print(TRXWR *trxwr, const char *s)
+void http_print(TRSXWR *trxwr, const char *s)
 {
     #if defined(__AVR__) && defined(__GNUC__)
           trxwr->client->print(s);
@@ -139,7 +139,7 @@ void http_print(TRXWR *trxwr, const char *s)
     #endif
 }
 /******************************************************************************************/
-void http_printk(TRXWR *trxwr, char *s)
+void http_printk(TRSXWR *trxwr, char *s)
 {
     #ifdef FS_STRING
         trxwr->client->print(reinterpret_cast <const __FlashStringHelper *> (s) );
@@ -167,7 +167,7 @@ void uint32toa(uint32_t ui32, char *buff, uint32_t sizebuff)
     snprintf(buff, sizebuff, "%lu", ui32);
 }
 /******************************************************************************************/
-void http_send_msgbody(TRXWR *trxwr, JSON *json, uint8_t npairs)
+void http_send_msgbody(TRSXWR *trxwr, JSON *json, uint8_t npairs)
 {
     int i;
     http_printk(trxwr, FS("{"));
@@ -184,24 +184,24 @@ void http_send_msgbody(TRXWR *trxwr, JSON *json, uint8_t npairs)
     http_printk(trxwr, FS("}"));
 }
 /******************************************************************************************/
-void httpTrx_setHost(TRXWR *trxwr, char *host)
+void httpTrx_setHost(TRSXWR *trxwr, char *host)
 {
     trxwr->Host = host;
 }
-void httpTrx_setURI(TRXWR *trxwr, char *URI)
+void httpTrx_setURI(TRSXWR *trxwr, char *URI)
 {
     trxwr->URI = URI;
 }
-void httpTrx_setApiKey(TRXWR *trxwr, char *ApiKey)    
+void httpTrx_setApiKey(TRSXWR *trxwr, char *ApiKey)    
 {
     trxwr->ApiKey = ApiKey;
 }
-void httpTrx_setHdrLine(TRXWR *trxwr, char *HdrLine)
+void httpTrx_setHdrLine(TRSXWR *trxwr, char *HdrLine)
 {
     trxwr->HdrLine = HdrLine;
 }
 /******************************************************************************************/
-int8_t httpTrx_requestMsg(TRXWR *trxwr, JSON *json, uint8_t npairs)//send the request message to HTTP server
+int8_t httpTrx_requestMsg(TRSXWR *trxwr, JSON *json, uint8_t npairs)//send the request message to HTTP server
 {
     int8_t cod_ret = 0;
     char buff[20];
@@ -271,7 +271,7 @@ KTIMEOUT_RESPONSEMSG_TOTALTIMEOUT: Is the global k-timeout assigned for all rece
     #define KTIMEOUT_AFTERSERVERDISCONNECTED_FLUSHBUFFER KTIMEOUT_RESPONSEMSG_TOTALTIMEOUT
 #endif // KTIMEOUT_AFTERSERVERDISCONNECTED_FLUSHBUFFER
 
-int8_t httpTrx_responseMsg(TRXWR *trxwr, char *outmsg)
+int8_t httpTrx_responseMsg(TRSXWR *trxwr, char *outmsg)
 {
     unsigned long tmr_readbuffer;
     char c;
@@ -299,7 +299,7 @@ int8_t httpTrx_responseMsg(TRXWR *trxwr, char *outmsg)
                 if (outmsg!= NULL)
                 {
                     outmsg[trxwr->respMsg.idx] = c;
-                    if (++trxwr->respMsg.idx >= HTTP_TRX_RX_BUFFER_MAX_SIZE)
+                    if (++trxwr->respMsg.idx >= HTTP_TRSX_RX_BUFFER_MAX_SIZE)
                     {
                         trxwr->respMsg.idx = 0;//as circular buffer
                     }
@@ -365,17 +365,17 @@ connection information between transactions).
 void ShowSocketStatus(void);
 #endif
 
-void httpTrx_setupServerByDomain(TRXWR *trxwr, char *domain, uint16_t port)
+void httpTrx_setupServerByDomain(TRSXWR *trxwr, char *domain, uint16_t port)
 {
     trxwr->domain = domain;
     trxwr->port = port;
 }
-void httpTrx_setupServerByIP(TRXWR *trxwr, uint8_t *IP, uint16_t port)
+void httpTrx_setupServerByIP(TRSXWR *trxwr, uint8_t *IP, uint16_t port)
 {
     trxwr->IP = IP;
     trxwr->port = port;
 }
-int8_t tcpClient_connection(TRXWR *trxwr)
+int8_t tcpClient_connection(TRSXWR *trxwr)
 {
     int8_t cod_ret;
     
@@ -389,7 +389,7 @@ int8_t tcpClient_connection(TRXWR *trxwr)
     return cod_ret;
 }
 
-int8_t http_trx(TRXWR *trxwr, JSON *json, uint8_t npairs, char *outmsg)
+int8_t http_trx(TRSXWR *trxwr, JSON *json, uint8_t npairs, char *outmsg)
 {
     static int8_t sm0;
     int8_t code_ret = 0;
@@ -451,7 +451,7 @@ RUNNING
 ********************************************************************************************/
 struct _httpTrx_t
 {
-    HTTP_TRX_SET_EXEC_MODE_E execMode;
+    HTTP_TRSX_SET_EXEC_MODE_E execMode;
     int8_t status;
     unsigned long exec_interval_ms;//exec with interval
     char *rx_buffer;
@@ -487,11 +487,11 @@ char *httpTrx_getRxBuffer(void)
 {
     return httpTrx_t.rx_buffer;
 }
-void httpTrx_setExecMode(HTTP_TRX_SET_EXEC_MODE execMode)
+void httpTrx_setExecMode(HTTP_TRSX_SET_EXEC_MODE execMode)
 {
     httpTrx_t.execMode = execMode.k;
 }
-HTTP_TRX_SET_EXEC_MODE_E httpTrx_getExecMode(void)
+HTTP_TRSX_SET_EXEC_MODE_E httpTrx_getExecMode(void)
 {
     return httpTrx_t.execMode;
 }
@@ -502,7 +502,7 @@ return:
 */
 int8_t http_trx_job(JSON *json, uint8_t npairs)
 {
-    static HTTP_TRX_SET_EXEC_MODE_E last_exec_mode;
+    static HTTP_TRSX_SET_EXEC_MODE_E last_exec_mode;
     static int8_t runInterval_sm0=0;
     static unsigned long tmr_run_interval;
     int8_t cod_ret = 0;
